@@ -1,0 +1,363 @@
+/* Global styles */
+html, body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f0f4f8;
+  color: #00060c;
+  height: 100%;
+}
+
+main {
+  margin: 0;
+  padding: 0;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  padding-top: 64px; /* prevent overlap with navbar */
+}
+
+/* Navbar */
+nav {
+  background-color: #e8eaee;
+  display: flex;
+  gap: 30px;
+  padding: 18px 32px;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 999;
+}
+
+nav a {
+  color: #00060c;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem;
+  transition: color 0.3s ease;
+}
+
+nav a:hover {
+  color: #2563eb;
+}
+
+/* Headings */
+h1, h2 {
+  color: #102a43;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* Content containers */
+.container, form {
+  max-width: 480px;
+  margin: 40px auto;
+  background: #ffffff;
+  padding: 32px 36px;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(16, 42, 67, 0.15);
+}
+
+/* Form elements */
+form input, form button {
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 18px;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  border: 1.8px solid #dbeafe;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #102a43;
+  background-color: #f0f9ff;
+  transition: all 0.3s ease;
+}
+
+form input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background-color: #e0efff;
+  box-shadow: 0 0 6px #2563ebaa;
+}
+
+form button {
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+form button:hover {
+  background-color: #1e40af;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  padding: 12px 22px;
+  margin-right: 10px;
+  margin-top: 12px;
+  background-color: #2563eb;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  word-break: break-word;
+  white-space: normal;
+  min-height: 40px;
+}
+
+button:last-child {
+  margin-right: 0;
+}
+
+button:hover {
+  background-color: #1e3a8a;
+  box-shadow: 0 5px 12px rgba(30, 58, 138, 0.6);
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  height: auto;
+  margin: 18px 0;
+  border-radius: 12px;
+}
+
+/* Timer text */
+.timer {
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #1e3a8a;
+}
+
+/* Dashboard Buttons layout */
+.dashboard-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+}
+
+.dashboard-buttons button, .dashboard-buttons a > button {
+  min-width: 140px;
+  flex-grow: 1;
+}
+
+/* ==================== DOCTOR DASHBOARD STYLES ==================== */
+
+.doctor-dashboard-container {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  color-scheme: light !important;
+  padding: 2rem !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(16, 42, 67, 0.15);
+}
+
+.doctor-dashboard-container h2,
+.doctor-dashboard-container h3,
+.doctor-dashboard-container h4,
+.doctor-dashboard-container p {
+  color: #000000 !important;
+}
+
+.doctor-dashboard-container strong {
+  color: #000000 !important;
+}
+
+.doctor-dashboard-container table {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  width: 100%;
+  border-collapse: collapse;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.doctor-dashboard-container thead {
+  background-color: #f3f4f6 !important;
+  color: #1f2937 !important;
+}
+
+.doctor-dashboard-container thead th {
+  color: #1f2937 !important;
+  background-color: #f3f4f6 !important;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #d1d5db !important;
+}
+
+.doctor-dashboard-container tbody tr {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.doctor-dashboard-container tbody tr:nth-child(even) {
+  background-color: #f9fafb !important;
+}
+
+.doctor-dashboard-container tbody td {
+  color: #000000 !important;
+  border-color: #e5e7eb !important;
+  padding: 1rem;
+}
+
+.doctor-dashboard-container button {
+  color: #ffffff !important;
+  background-color: #2563eb !important;
+}
+
+.doctor-dashboard-container button:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* Risk level badges */
+.risk-badge-low {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.risk-badge-medium {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.risk-badge-high {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.risk-badge-na {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+/* ==================== END DOCTOR DASHBOARD STYLES ==================== */
+
+/* Card Styles */
+.card {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(16, 42, 67, 0.15);
+}
+
+.card h2,
+.card h3,
+.card h4,
+.card p {
+  color: #000000 !important;
+}
+
+.card table {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+.card table th {
+  background-color: #f3f4f6 !important;
+  color: #1f2937 !important;
+  border-bottom: 2px solid #2563eb !important;
+  padding: 12px;
+  text-align: left;
+}
+
+.card table td {
+  color: #000000 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  padding: 12px;
+}
+
+.card table tbody tr:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+.card table tbody tr:nth-child(even) {
+  background-color: #f9fafb !important;
+}
+
+/* Navigation responsive */
+nav a {
+  flex-wrap: wrap;
+  display: inline-block;
+}
+
+nav button, nav a {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  nav {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  nav a, nav button {
+    width: 100%;
+    text-align: left;
+  }
+  
+  .doctor-dashboard-container {
+    padding: 1rem !important;
+  }
+  
+  .doctor-dashboard-container table {
+    font-size: 0.9rem;
+  }
+  
+  .doctor-dashboard-container thead th {
+    padding: 0.75rem !important;
+  }
+  
+  .doctor-dashboard-container tbody td {
+    padding: 0.75rem !important;
+  }
+}
+
+/* Remove conflicting dark mode styles */
+@media (prefers-color-scheme: dark) {
+  .doctor-dashboard-container,
+  .doctor-dashboard-container table,
+  .doctor-dashboard-container tbody tr,
+  .doctor-dashboard-container thead,
+  .card {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    color-scheme: light !important;
+  }
+}
