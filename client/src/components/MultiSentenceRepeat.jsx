@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 function MultiSentenceRepeat({ sentences = [], duration = 10, onComplete }) {
   const [step, setStep] = useState(0); // 0..(sentences.length-1)
   const [showSentence, setShowSentence] = useState(true);
   const [timer, setTimer] = useState(duration);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordTimer, setRecordTimer] = useState(10);
   const [transcripts, setTranscripts] = useState(Array(sentences.length).fill(''));
   const [recognition, setRecognition] = useState(null);
+  const recordIntervalRef = useRef(null);
+  const autoStopTimeoutRef = useRef(null);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -23,10 +26,27 @@ function MultiSentenceRepeat({ sentences = [], duration = 10, onComplete }) {
           return copy;
         });
       };
-      rec.onend = () => setIsRecording(false);
+      rec.onend = () => {
+        setIsRecording(false);
+        if (recordIntervalRef.current) {
+          clearInterval(recordIntervalRef.current);
+          recordIntervalRef.current = null;
+        }
+        if (autoStopTimeoutRef.current) {
+          clearTimeout(autoStopTimeoutRef.current);
+          autoStopTimeoutRef.current = null;
+        }
+      };
       setRecognition(rec);
     }
   }, [step]);
+
+  useEffect(() => {
+    return () => {
+      if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
+      if (autoStopTimeoutRef.current) clearTimeout(autoStopTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!showSentence) return;
@@ -41,7 +61,36 @@ function MultiSentenceRepeat({ sentences = [], duration = 10, onComplete }) {
   const startRecording = () => {
     if (recognition) {
       setIsRecording(true);
+      setRecordTimer(10);
+      if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
+      recordIntervalRef.current = setInterval(() => {
+        setRecordTimer((t) => {
+          const nt = Math.max(0, t - 1);
+          return nt;
+        });
+      }, 1000);
+      if (autoStopTimeoutRef.current) clearTimeout(autoStopTimeoutRef.current);
+      autoStopTimeoutRef.current = setTimeout(() => {
+        stopRecording();
+      }, 10000);
       recognition.start();
+    }
+  };
+
+  const stopRecording = () => {
+    try {
+      if (recognition && isRecording) {
+        recognition.stop();
+      }
+    } catch (_) {}
+    setIsRecording(false);
+    if (recordIntervalRef.current) {
+      clearInterval(recordIntervalRef.current);
+      recordIntervalRef.current = null;
+    }
+    if (autoStopTimeoutRef.current) {
+      clearTimeout(autoStopTimeoutRef.current);
+      autoStopTimeoutRef.current = null;
     }
   };
 
@@ -72,7 +121,12 @@ function MultiSentenceRepeat({ sentences = [], duration = 10, onComplete }) {
           {!isRecording && !transcripts[step] && (
             <button onClick={startRecording}>Start Recording</button>
           )}
-          {isRecording && <p style={{ color: '#ef4444' }}>Recording... Speak now!</p>}
+          {isRecording && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <p style={{ color: '#ef4444', margin: 0 }}>Recording... {recordTimer}s left</p>
+              <button onClick={stopRecording}>Stop Recording</button>
+            </div>
+          )}
           {transcripts[step] && (
             <div>
               <p><strong>Your response:</strong> "{transcripts[step]}"</p>

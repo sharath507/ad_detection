@@ -408,6 +408,13 @@ function CognitiveTest({ setRoute }) {
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [timer, setTimer] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [eduOpen, setEduOpen] = useState(false);
+  const [genderOpen, setGenderOpen] = useState(false);
+  const [ethnicityOpen, setEthnicityOpen] = useState(false);
+  const [memProbOpen, setMemProbOpen] = useState(false);
+  const [balanceOpen, setBalanceOpen] = useState(false);
+  const [strokeOpen, setStrokeOpen] = useState(false);
+  const [moodOpen, setMoodOpen] = useState(false);
   const [patientInfo, setPatientInfo] = useState({
     personal_information: {
       name: "",
@@ -679,17 +686,35 @@ const finishTest = async (finalAnswers) => {
 //   };
 const submitPatientInfo = async (e) => {
   e.preventDefault();
-  setIsSubmitting(true);
-  
   try {
     const token = localStorage.getItem('token');
     const userId = localStorage.getItem('userId');
-    
     if (!token || !userId) {
       alert('Session expired. Please log in again.');
       setRoute('login');
       return;
     }
+
+    // Validate required fields before sending
+    const pi = patientInfo.personal_information || {};
+    const mh = patientInfo.medical_history || {};
+    const missing = [];
+    if (!pi.name?.trim()) missing.push('Name');
+    if (!pi.date_of_birth) missing.push('Date of Birth');
+    if (!pi.education_level) missing.push('Education Level');
+    if (!pi.gender) missing.push('Gender');
+    if (!pi.ethnicity) missing.push('Ethnicity');
+    if (!mh.memory_or_thinking_problems?.response) missing.push('Memory/Thinking Problems');
+    if (!mh.balance_problems?.response) missing.push('Balance Problems');
+    if (!mh.stroke_history?.major_stroke) missing.push('Major Stroke');
+    if (!mh.mood_status?.sad_or_depressed) missing.push('Mood Status');
+
+    if (missing.length > 0) {
+      alert('Please fill all required fields before starting the test:\n- ' + missing.join('\n- '));
+      return;
+    }
+
+    setIsSubmitting(true);
 
     console.log('Saving patient info:', patientInfo);
 
@@ -1008,103 +1033,191 @@ const handleTextSubmit = (e) => {
       </div>
       <div style={{ marginBottom: '1rem' }}>
         <label>Education Level: </label>
-        <input 
-          type="text" 
-          placeholder="e.g., High School, Bachelor's" 
-          value={patientInfo.personal_information.education_level} 
-          onChange={(e) => setPatientInfo({...patientInfo, personal_information: {...patientInfo.personal_information, education_level: e.target.value}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem' }}
-        />
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => setEduOpen(!eduOpen)}
+            style={{
+              width: '100%',
+              textAlign: 'left',
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              background: '#fff',
+              color: '#111',
+              cursor: 'pointer'
+            }}
+          >
+            {patientInfo.personal_information.education_level
+              ? (patientInfo.personal_information.education_level === 'none' ? 'No school'
+                : patientInfo.personal_information.education_level === 'secondary' ? 'School'
+                : "Bachelor's")
+              : 'Select'}
+          </button>
+          {eduOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: '#fff',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                zIndex: 1000,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+              }}
+            >
+              {[
+                { v: 'none', l: 'No school' },
+                { v: 'secondary', l: 'School' },
+                { v: 'graduate', l: "Bachelor's" }
+              ].map(opt => (
+                <button
+                  type="button"
+                  key={opt.v}
+                  onClick={() => {
+                    setPatientInfo({
+                      ...patientInfo,
+                      personal_information: {
+                        ...patientInfo.personal_information,
+                        education_level: opt.v
+                      }
+                    });
+                    setEduOpen(false);
+                  }}
+                  style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                >
+                  {opt.l}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div style={{ marginBottom: '1rem' }}>
         <label>Gender: </label>
-        <select 
-          value={patientInfo.personal_information.gender} 
-          onChange={(e) => setPatientInfo({...patientInfo, personal_information: {...patientInfo.personal_information, gender: e.target.value}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem' }}
-        >
-          <option value="">Select</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => setGenderOpen(!genderOpen)}
+            style={{
+              width: '100%', textAlign: 'left', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', color: '#111', cursor: 'pointer'
+            }}
+          >
+            {patientInfo.personal_information.gender || 'Select'}
+          </button>
+          {genderOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              {['Male','Female','Other'].map(opt => (
+                <button type="button" key={opt} style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setPatientInfo({ ...patientInfo, personal_information: { ...patientInfo.personal_information, gender: opt } }); setGenderOpen(false); }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div style={{ marginBottom: '1rem' }}>
         <label>Ethnicity: </label>
-        <select 
-          value={patientInfo.personal_information.ethnicity} 
-          onChange={(e) => setPatientInfo({...patientInfo, personal_information: {...patientInfo.personal_information, ethnicity: e.target.value}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem' }}
-        >
-          <option value="">Select</option>
-          <option value="Asian">Asian</option>
-          <option value="Black">Black</option>
-          <option value="Hispanic">Hispanic</option>
-          <option value="White">White</option>
-          <option value="Other">Other</option>
-        </select>
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button type="button" onClick={() => setEthnicityOpen(!ethnicityOpen)}
+            style={{ width: '100%', textAlign: 'left', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            {patientInfo.personal_information.ethnicity || 'Select'}
+          </button>
+          {ethnicityOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              {['Asian','Black','Hispanic','White','Other'].map(opt => (
+                <button type="button" key={opt} style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setPatientInfo({ ...patientInfo, personal_information: { ...patientInfo.personal_information, ethnicity: opt } }); setEthnicityOpen(false); }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <h3 style={{ marginTop: '2rem' }}>Medical History</h3>
       <div style={{ marginBottom: '1rem' }}>
         <label>Have you had any problems with memory or thinking?</label>
-        <select 
-          value={patientInfo.medical_history.memory_or_thinking_problems.response} 
-          onChange={(e) => setPatientInfo({...patientInfo, medical_history: {...patientInfo.medical_history, memory_or_thinking_problems: {...patientInfo.medical_history.memory_or_thinking_problems, response: e.target.value}}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem' }}
-        >
-          <option value="">Select</option>
-          <option value="Yes">Yes</option>
-          <option value="Only Occasionally">Only Occasionally</option>
-          <option value="No">No</option>
-        </select>
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button type="button" onClick={() => setMemProbOpen(!memProbOpen)}
+            style={{ width: '100%', textAlign: 'left', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            {patientInfo.medical_history.memory_or_thinking_problems.response || 'Select'}
+          </button>
+          {memProbOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              {['Yes','Only Occasionally','No'].map(opt => (
+                <button type="button" key={opt} style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setPatientInfo({ ...patientInfo, medical_history: { ...patientInfo.medical_history, memory_or_thinking_problems: { ...patientInfo.medical_history.memory_or_thinking_problems, response: opt } } }); setMemProbOpen(false); }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       
       <div style={{ marginBottom: '1rem' }}>
         <label>Do you have balance problems?</label>
-        <select 
-          value={patientInfo.medical_history.balance_problems.response} 
-          onChange={(e) => setPatientInfo({...patientInfo, medical_history: {...patientInfo.medical_history, balance_problems: {...patientInfo.medical_history.balance_problems, response: e.target.value}}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem' }}
-        >
-          <option value="">Select</option>
-          <option value="Yes">Yes</option>
-          <option value="No">No</option>
-        </select>
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button type="button" onClick={() => setBalanceOpen(!balanceOpen)}
+            style={{ width: '100%', textAlign: 'left', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            {patientInfo.medical_history.balance_problems.response || 'Select'}
+          </button>
+          {balanceOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              {['Yes','No'].map(opt => (
+                <button type="button" key={opt} style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setPatientInfo({ ...patientInfo, medical_history: { ...patientInfo.medical_history, balance_problems: { ...patientInfo.medical_history.balance_problems, response: opt } } }); setBalanceOpen(false); }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
         <label>Have you ever had a major stroke?</label>
-        <select 
-          value={patientInfo.medical_history.stroke_history.major_stroke} 
-          onChange={(e) => setPatientInfo({...patientInfo, medical_history: {...patientInfo.medical_history, stroke_history: {...patientInfo.medical_history.stroke_history, major_stroke: e.target.value}}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem' }}
-        >
-          <option value="">Select</option>
-          <option value="Yes">Yes</option>
-          <option value="No">No</option>
-        </select>
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button type="button" onClick={() => setStrokeOpen(!strokeOpen)}
+            style={{ width: '100%', textAlign: 'left', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            {patientInfo.medical_history.stroke_history.major_stroke || 'Select'}
+          </button>
+          {strokeOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              {['Yes','No'].map(opt => (
+                <button type="button" key={opt} style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setPatientInfo({ ...patientInfo, medical_history: { ...patientInfo.medical_history, stroke_history: { ...patientInfo.medical_history.stroke_history, major_stroke: opt } } }); setStrokeOpen(false); }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
         <label>Do you currently feel sad or depressed?</label>
-        <select 
-          value={patientInfo.medical_history.mood_status.sad_or_depressed} 
-          onChange={(e) => setPatientInfo({...patientInfo, medical_history: {...patientInfo.medical_history, mood_status: {...patientInfo.medical_history.mood_status, sad_or_depressed: e.target.value}}})} 
-          required 
-          style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem' }}
-        >
-          <option value="">Select</option>
-          <option value="Yes">Yes</option>
-          <option value="Only Occasionally">Only Occasionally</option>
-          <option value="No">No</option>
-        </select>
+        <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+          <button type="button" onClick={() => setMoodOpen(!moodOpen)}
+            style={{ width: '100%', textAlign: 'left', padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            {patientInfo.medical_history.mood_status.sad_or_depressed || 'Select'}
+          </button>
+          {moodOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              {['Yes','Only Occasionally','No'].map(opt => (
+                <button type="button" key={opt} style={{ padding: '0.5rem', width: '100%', textAlign: 'left', background: '#fff', color: '#111', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setPatientInfo({ ...patientInfo, medical_history: { ...patientInfo.medical_history, mood_status: { ...patientInfo.medical_history.mood_status, sad_or_depressed: opt } } }); setMoodOpen(false); }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <button onClick={submitPatientInfo} style={{ marginTop: '2rem', width: '100%' }}>Start Cognitive Assessment</button>
@@ -1127,6 +1240,9 @@ const handleTextSubmit = (e) => {
               {currentSection.words.map(word => <span key={word}>{word}</span>)}
             </div>
             <p style={{ fontSize: '1.5rem', color: '#1d4ed8' }}>Time remaining: {timer}s</p>
+            <div style={{ marginTop: '1rem' }}>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </div>
         );
 
@@ -1138,7 +1254,10 @@ const handleTextSubmit = (e) => {
             <input name="word1" placeholder="First word" required autoComplete="off" autoCorrect="off" spellCheck={false} style={{ display: 'block', marginBottom: '1rem' }} />
             <input name="word2" placeholder="Second word" required autoComplete="off" autoCorrect="off" spellCheck={false} style={{ display: 'block', marginBottom: '1rem' }} />
             <input name="word3" placeholder="Third word" required autoComplete="off" autoCorrect="off" spellCheck={false} style={{ display: 'block', marginBottom: '1rem' }} />
-            <button type="submit">Submit Answers</button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit">Submit Answers</button>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </form>
         );
 
@@ -1179,7 +1298,10 @@ const handleTextSubmit = (e) => {
             />
             <form onSubmit={handleImageNaming} key={`img-form-${questionIndex}`}>
               <input key={`img-input-${questionIndex}`} name="imageName" type="text" placeholder="Type the object name" required autoFocus autoComplete="off" autoCorrect="off" spellCheck={false} style={{ marginTop: '1rem' }} />
-              <button type="submit">Next</button>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button type="submit">Next</button>
+                <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+              </div>
             </form>
           </div>
         );
@@ -1207,6 +1329,9 @@ const handleTextSubmit = (e) => {
               repetitions={currentSection.repetitions} 
               onComplete={handleSerialSubtraction} 
             />
+            <div style={{ marginTop: '1rem' }}>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </div>
         );
 
@@ -1216,7 +1341,10 @@ const handleTextSubmit = (e) => {
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
             <DrawingCanvas clockMode={true} />
-            <button onClick={() => handleNext()} style={{ marginTop: '1rem' }}>Submit Drawing</button>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button onClick={() => handleNext()}>Submit Drawing</button>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </div>
         );
 
@@ -1230,6 +1358,9 @@ const handleTextSubmit = (e) => {
               duration={10}
               onComplete={handleMultiSentenceComplete}
             />
+            <div style={{ marginTop: '1rem' }}>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </div>
         );
 
@@ -1243,12 +1374,16 @@ const handleTextSubmit = (e) => {
             {q.type === 'text' && (
               <form onSubmit={handleTextSubmit}>
                 <input type="text" value={currentAnswer} onChange={handleAnswerChange} required autoFocus />
-                <button type="submit">Next</button>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button type="submit">Next</button>
+                  <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+                </div>
               </form>
             )}
             {q.type === 'mcq' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '300px', margin: '0 auto' }}>
                 {q.options.map(opt => <button key={opt} onClick={() => handleMCQAnswer(opt)}>{opt}</button>)}
+                <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
               </div>
             )}
           </div>
