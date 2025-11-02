@@ -11,14 +11,48 @@ function TrailMakingTest({ onComplete }) {
   const sequence = ['1', 'A', '2', 'B', '3', 'C', '4', 'D', '5', 'E', '6', 'F'];
 
   useEffect(() => {
-    // Generate random positions for nodes
-    const generatedNodes = sequence.map((label, index) => ({
-      label,
-      x: 100 + Math.random() * 400,
-      y: 100 + Math.random() * 300,
-      index
-    }));
-    setNodes(generatedNodes);
+    const canvas = canvasRef.current;
+    const width = (canvas?.width) || 600;
+    const height = (canvas?.height) || 500;
+    const pad = 50;
+    const minDist = 70;
+    const maxAttempts = 2000;
+
+    const placed = [];
+    let attempts = 0;
+    for (let i = 0; i < sequence.length; i++) {
+      let placedNode = null;
+      while (!placedNode && attempts < maxAttempts) {
+        attempts++;
+        const candidate = {
+          label: sequence[i],
+          x: pad + Math.random() * (width - pad * 2),
+          y: pad + Math.random() * (height - pad * 2),
+          index: i
+        };
+        const ok = placed.every(p => {
+          const dx = p.x - candidate.x;
+          const dy = p.y - candidate.y;
+          return Math.hypot(dx, dy) >= minDist;
+        });
+        if (ok) placedNode = candidate;
+      }
+      // Fallback grid placement if random failed
+      if (!placedNode) {
+        const cols = 4;
+        const rows = Math.ceil(sequence.length / cols);
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        placedNode = {
+          label: sequence[i],
+          x: pad + (col + 0.5) * ((width - pad * 2) / cols),
+          y: pad + (row + 0.5) * ((height - pad * 2) / rows),
+          index: i
+        };
+      }
+      placed.push(placedNode);
+    }
+    setNodes(placed);
     setStartTime(Date.now());
   }, []);
 

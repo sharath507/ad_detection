@@ -291,6 +291,7 @@ import DrawingCanvas from "./DrawingCanvas";
 import TrailMakingTest from "./TrailMakingTest";
 import LetterTapTest from "./LetterTapTest";
 import SpeechRecorder from "./SpeechRecorder";
+import MultiSentenceRepeat from "./MultiSentenceRepeat";
 import api from "../api";
 
 // Comprehensive assessment sections combining MoCA, SAGE, and Mini-Cog
@@ -307,7 +308,7 @@ const assessmentSections = [
     title: "Memory Registration",
     type: "memory_encoding",
     words: ["Banana", "Sunrise", "Chair"], // Mini-Cog words
-    duration: 10,
+    duration: 6,
     instruction: "Please listen carefully and remember these three words. You will be asked to recall them later."
   },
   
@@ -335,7 +336,7 @@ const assessmentSections = [
     title: "Attention Test",
     type: "letter_tap",
     instruction: "Press the SPACEBAR every time you see or hear the letter 'A'. Try not to press for any other letters.",
-    letters: "F B A C M N A A J K L B A F A K D E A A A J A M O F A A B".split(" "),
+    letters: "F B A C M N A J A K L B A F A K D E A M A J A M O F A O B".split(" "),
     targetLetter: "A"
   },
   
@@ -537,18 +538,31 @@ const finishTest = async (finalAnswers) => {
       return;
     }
 
+    // Transform answers to match server schema when necessary
+    const transformed = { ...finalAnswers };
+    const sentenceSection = assessmentSections.find(s => s.type === 'sentence_repeat');
+    if (Array.isArray(transformed.sentence_repeat)) {
+      transformed.sentence_repeat = transformed.sentence_repeat.map((userTranscript, idx) => ({
+        sentenceId: `sr${idx + 1}`,
+        sentence: sentenceSection?.sentences?.[idx] || `Sentence ${idx + 1}`,
+        userTranscript,
+        audioFile: '',
+        recordedAt: new Date()
+      }));
+    }
+
     const completeData = {
       patientId,
       testData: {
         testStartTime: new Date(),
         testEndTime: new Date(),
-        ...finalAnswers
+        ...transformed
       }
     };
 
     console.log('Submitting test data:', completeData);
 
-    const response = await fetch('http://localhost:5000/api/test/submit-test', {
+    const response = await fetch('/api/test/submit-test', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -680,7 +694,7 @@ const submitPatientInfo = async (e) => {
     console.log('Saving patient info:', patientInfo);
 
     // Send patient info to backend
-    const response = await fetch('http://localhost:5000/api/test/patient-info', {
+    const response = await fetch('/api/test/patient-info', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -770,8 +784,18 @@ const handleTextSubmit = (e) => {
     handleNext(newAnswers);
   };
 
+  const handleSkipSection = () => {
+    handleNext(answers);
+  };
+
   const handleSpeechRecord = (transcript) => {
     const newAnswers = { ...answers, [`sentence_repeat_${questionIndex}`]: transcript };
+    setAnswers(newAnswers);
+    handleNext(newAnswers);
+  };
+
+  const handleMultiSentenceComplete = (transcripts) => {
+    const newAnswers = { ...answers, sentence_repeat: transcripts };
     setAnswers(newAnswers);
     handleNext(newAnswers);
   };
@@ -783,6 +807,10 @@ const handleTextSubmit = (e) => {
     const newAnswers = { ...answers, [`image_naming_${imageIndex}`]: imageAnswer };
     setAnswers(newAnswers);
     setCurrentAnswer('');
+    // Clear the input field to avoid carrying over previous value
+    if (e.target && typeof e.target.reset === 'function') {
+      e.target.reset();
+    }
     handleNext(newAnswers);
   };
 
@@ -843,13 +871,17 @@ const handleTextSubmit = (e) => {
   if (section?.type === 'clock_drawing') newAnswers.clock_drawing = 'submitted';
 
   // Determine whether to go to next section
+  // For sentence_repeat handled by MultiSentenceRepeat, advance section upon completion
   const shouldAdvanceSection =
-    section?.type !== 'questions' &&
-    section?.type !== 'image_naming' &&
-    section?.type !== 'sentence_repeat'
-    || isLastQuestionInSection
-    || isLastImageInSection
-    || isLastSentenceInSection;
+    (section?.type === 'sentence_repeat') ||
+    (
+      section?.type !== 'questions' &&
+      section?.type !== 'image_naming' &&
+      section?.type !== 'sentence_repeat'
+    ) ||
+    isLastQuestionInSection ||
+    isLastImageInSection ||
+    isLastSentenceInSection;
 
   if (shouldAdvanceSection) {
     if (sectionIndex + 1 >= assessmentSections.length) {
@@ -1103,9 +1135,9 @@ const handleTextSubmit = (e) => {
           <form onSubmit={handleRecallSubmit}>
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
-            <input name="word1" placeholder="First word" required style={{ display: 'block', marginBottom: '1rem' }} />
-            <input name="word2" placeholder="Second word" required style={{ display: 'block', marginBottom: '1rem' }} />
-            <input name="word3" placeholder="Third word" required style={{ display: 'block', marginBottom: '1rem' }} />
+            <input name="word1" placeholder="First word" required autoComplete="off" autoCorrect="off" spellCheck={false} style={{ display: 'block', marginBottom: '1rem' }} />
+            <input name="word2" placeholder="Second word" required autoComplete="off" autoCorrect="off" spellCheck={false} style={{ display: 'block', marginBottom: '1rem' }} />
+            <input name="word3" placeholder="Third word" required autoComplete="off" autoCorrect="off" spellCheck={false} style={{ display: 'block', marginBottom: '1rem' }} />
             <button type="submit">Submit Answers</button>
           </form>
         );
@@ -1116,6 +1148,9 @@ const handleTextSubmit = (e) => {
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
             <TrailMakingTest onComplete={handleTrailMaking} />
+            <div style={{ marginTop: '1rem' }}>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </div>
         );
 
@@ -1126,9 +1161,24 @@ const handleTextSubmit = (e) => {
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
             <p>Image {questionIndex + 1} of {currentSection.images.length}</p>
-            <img src={currentImage.src} alt="Object to name" style={{ maxWidth: '400px', margin: '2rem auto', display: 'block' }} />
-            <form onSubmit={handleImageNaming}>
-              <input name="imageName" type="text" placeholder="Type the object name" required autoFocus style={{ marginTop: '1rem' }} />
+            <img
+              src={`${import.meta.env.BASE_URL || '/'}${currentImage.src.replace(/^\//,'')}`}
+              alt="Object to name"
+              style={{ maxWidth: '400px', margin: '2rem auto', display: 'block' }}
+              onError={(e) => {
+                const el = e.currentTarget;
+                if (el.dataset.fallback) return;
+                el.dataset.fallback = '1';
+                const orig = `${import.meta.env.BASE_URL || '/'}${currentImage.src.replace(/^\//,'')}`;
+                if (orig.toLowerCase().endsWith('.jpg')) {
+                  el.src = orig.replace(/\.jpg$/i, '.jpeg');
+                } else if (orig.toLowerCase().endsWith('.jpeg')) {
+                  el.src = orig.replace(/\.jpeg$/i, '.jpg');
+                }
+              }}
+            />
+            <form onSubmit={handleImageNaming} key={`img-form-${questionIndex}`}>
+              <input key={`img-input-${questionIndex}`} name="imageName" type="text" placeholder="Type the object name" required autoFocus autoComplete="off" autoCorrect="off" spellCheck={false} style={{ marginTop: '1rem' }} />
               <button type="submit">Next</button>
             </form>
           </div>
@@ -1140,6 +1190,9 @@ const handleTextSubmit = (e) => {
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
             <LetterTapTest letters={currentSection.letters} targetLetter={currentSection.targetLetter} onComplete={handleLetterTap} />
+            <div style={{ marginTop: '1rem' }}>
+              <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
+            </div>
           </div>
         );
 
@@ -1162,19 +1215,21 @@ const handleTextSubmit = (e) => {
           <div>
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
-            <DrawingCanvas />
+            <DrawingCanvas clockMode={true} />
             <button onClick={() => handleNext()} style={{ marginTop: '1rem' }}>Submit Drawing</button>
           </div>
         );
 
       case 'sentence_repeat':
-        const currentSentence = currentSection.sentences[questionIndex];
         return (
           <div>
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
-            <p>Sentence {questionIndex + 1} of {currentSection.sentences.length}</p>
-            <SpeechRecorder sentence={currentSentence} onComplete={handleSpeechRecord} />
+            <MultiSentenceRepeat
+              sentences={currentSection.sentences}
+              duration={10}
+              onComplete={handleMultiSentenceComplete}
+            />
           </div>
         );
 

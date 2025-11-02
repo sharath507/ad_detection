@@ -228,7 +228,7 @@ function App() {
 
   return (
     <>
-      <Navbar setRoute={setRoute} loggedInUser={loggedInUser} setLoggedInUser={setLoggedInUser} />
+      <Navbar setRoute={setRoute} loggedInUser={loggedInUser} setLoggedInUser={setLoggedInUser} currentRoute={route} />
       <main>
         {renderContent()}
       </main>

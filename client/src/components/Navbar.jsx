@@ -55,29 +55,40 @@ const linkStyle = {
   cursor: 'pointer'
 };
 
-function Navbar({ setRoute, setLoggedInUser, loggedInUser }) {
+function Navbar({ setRoute, setLoggedInUser, loggedInUser, currentRoute }) {
   const handleLogout = () => {
     setLoggedInUser(null);
     setRoute('login');
   };
 
+  const isActive = (route) => currentRoute === route;
+  const getStyle = (route) => ({
+    ...linkStyle,
+    textDecoration: isActive(route) ? 'underline' : 'none',
+    opacity: isActive(route) ? 1 : 0.9
+  });
+
   return (
     <nav style={{ backgroundColor: '#1d4ed8', padding: '18px 32px', display: 'flex', flexWrap: 'wrap', gap: '24px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-      <a onClick={() => setRoute('about')} style={linkStyle}>About Us</a>
-      <a onClick={() => setRoute('consult')} style={linkStyle}>Consult Doctor</a>
-      {loggedInUser && <a onClick={() => setRoute('test')} style={linkStyle}>Take Cognitive Test</a>}
+      <a onClick={() => setRoute('about')} style={getStyle('about')}>About Us</a>
+      {(!loggedInUser || loggedInUser.role !== 'doctor') && (
+        <a onClick={() => setRoute('consult')} style={getStyle('consult')}>Consult Doctor</a>
+      )}
+      {loggedInUser && loggedInUser.role !== 'doctor' && (
+        <a onClick={() => setRoute('test')} style={getStyle('test')}>Take Cognitive Test</a>
+      )}
       <div style={{ marginLeft: 'auto', display: 'flex', gap: '24px' }}>
         {loggedInUser ? (
           <>
-            {loggedInUser.role === 'patient' && <a onClick={() => setRoute('dashboard')} style={linkStyle}>Patient Dashboard</a>}
-            {loggedInUser.role === 'doctor' && <a onClick={() => setRoute('doctor-dashboard')} style={linkStyle}>Doctor Dashboard</a>}
-            {loggedInUser.role === 'doctor' && <a onClick={() => setRoute('doctor-profile')} style={linkStyle}>My Profile</a>}
+            {loggedInUser.role === 'patient' && <a onClick={() => setRoute('dashboard')} style={getStyle('dashboard')}>Patient Dashboard</a>}
+            {loggedInUser.role === 'doctor' && <a onClick={() => setRoute('doctor-dashboard')} style={getStyle('doctor-dashboard')}>Doctor Dashboard</a>}
+            {loggedInUser.role === 'doctor' && <a onClick={() => setRoute('doctor-profile')} style={getStyle('doctor-profile')}>My Profile</a>}
             <a onClick={handleLogout} style={linkStyle}>Logout ({loggedInUser.username})</a>
           </>
         ) : (
           <>
-            <a onClick={() => setRoute('login')} style={linkStyle}>Login</a>
-            <a onClick={() => setRoute('signup')} style={linkStyle}>Signup</a>
+            <a onClick={() => setRoute('login')} style={getStyle('login')}>Login</a>
+            <a onClick={() => setRoute('signup')} style={getStyle('signup')}>Signup</a>
           </>
         )}
       </div>
