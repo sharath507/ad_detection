@@ -91,14 +91,18 @@ class CognitiveTestScoringService {
         scores.memory = this.scoreMemory(testResponse.memory_recall);
       }
       
-      // Score Attention Component
+      // Score Attention Component (average subtests to keep within 0..100)
+      const attentionParts = [];
       if (testResponse.letter_tap) {
-        scores.attention = this.scoreLetterTap(testResponse.letter_tap);
+        attentionParts.push(this.scoreLetterTap(testResponse.letter_tap));
       }
-      
       if (testResponse.serial_subtraction) {
         const result = this.scoreSerialSubtraction(testResponse.serial_subtraction);
-        scores.attention = (scores.attention || 0) + result.score;
+        attentionParts.push(result.score);
+      }
+      if (attentionParts.length > 0) {
+        const sum = attentionParts.reduce((a, b) => a + b, 0);
+        scores.attention = Math.min(100, Math.max(0, sum / attentionParts.length));
       }
       
       // Score Visuospatial Component
@@ -252,7 +256,8 @@ class CognitiveTestScoringService {
     for (let [category, weight] of Object.entries(weights)) {
       totalScore += (scores[category] || 0) * weight;
     }
-    
+    // Ensure total remains within 0..100
+    totalScore = Math.min(100, Math.max(0, totalScore));
     return Math.round(totalScore);
   }
 

@@ -25,90 +25,6 @@
     
 //     await patientInfo.save();
 //     res.status(201).json({ patientId, patientInfo });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// // Submit Test Responses
-// router.post('/submit-test', authenticate, async (req, res) => {
-//   try {
-//     const { patientId, testData } = req.body;
-//     const { userId } = req.user;
-//     const testId = `test_${patientId}_${Date.now()}`;
-    
-//     // Score the test
-//     const scoring = await cognitiveScoring.scoreCompleteTest(testData);
-    
-//     // Convert test data to features for neural network prediction
-//     const features = extractFeatures(testData);
-//     const prediction = await predictionService.predictAD(features);
-    
-//     // Save response
-//     const testResponse = new CognitiveTestResponse({
-//       testId,
-//       patientId,
-//       userId,
-//       ...testData,
-//       testEndTime: new Date(),
-//       totalDuration: (new Date() - new Date(testData.testStartTime)) / 1000,
-//       ...scoring,
-//       prediction,
-//       testStatus: 'completed'
-//     });
-    
-//     await testResponse.save();
-    
-//     res.status(201).json({
-//       testId,
-//       scores: scoring.scores,
-//       totalScore: scoring.totalScore,
-//       riskLevel: scoring.riskLevel,
-//       prediction
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// // Get Test Results
-// router.get('/test-results/:patientId', authenticate, async (req, res) => {
-//   try {
-//     const { patientId } = req.params;
-//     const results = await CognitiveTestResponse.find({ patientId }).sort({ createdAt: -1 });
-//     res.json(results);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// // Helper to extract features from test data
-// function extractFeatures(testData) {
-//   // Map test performance to features matching the AI model
-//   const features = [
-//     testData.memory_recall?.correctCount || 0,
-//     testData.trail_making?.errors || 0,
-//     testData.trail_making?.time || 0,
-//     testData.letter_tap?.accuracy || 0,
-//     // Add more features based on model requirements
-//   ];
-//   return features;
-// }
-
-// module.exports = router;
-
-
-// // routes/testRoutes.js
-// const express = require('express');
-// const CognitiveTestResponse = require('../models/CognitiveTestResponse');
-// const PatientInfo = require('../models/PatientInfo');
-// const cognitiveScoring = require('../services/cognitiveScoring');
-// const authenticate = require('../middleware/authenticate');
-
-// const router = express.Router();
-
-// // Save Patient Info
-// router.post('/patient-info', authenticate, async (req, res) => {
 //   try {
 //     const { personal_information, medical_history } = req.body;
 //     const { userId } = req.user;
@@ -126,80 +42,12 @@
 //     console.log('Patient info saved:', patientId);
 //     res.status(201).json({ patientId, patientInfo });
 //   } catch (error) {
-//     console.error('Patient info save error:', error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// // Submit Test Responses
-// router.post('/submit-test', authenticate, async (req, res) => {
-//   try {
-//     const { patientId, testData } = req.body;
-//     const { userId } = req.user;
-//     const testId = `test_${patientId}_${Date.now()}`;
-    
-//     console.log('Submitting test:', testId);
-//     console.log('Test data received:', testData);
-
-//     // Score the test
-//     const scoring = await cognitiveScoring.scoreCompleteTest(testData);
-    
-//     console.log('Test scored:', scoring);
-
-//     // Save response
-//     const testResponse = new CognitiveTestResponse({
-//       testId,
-//       patientId,
-//       userId,
-//       ...testData,
-//       testStatus: 'completed',
-//       totalScore: scoring.totalScore,
-//       scores: scoring.scores,
-//       prediction: {
-//         isAD: false,
-//         probability: 0.35,
-//         riskLevel: 'low',
-//         modelVersion: 'v1.0'
-//       }
-//     });
-    
-//     await testResponse.save();
-//     console.log('Test response saved');
-    
-//     res.status(201).json({
-//       success: true,
-//       testId,
-//       scores: scoring.scores,
-//       totalScore: scoring.totalScore,
-//       riskLevel: scoring.riskLevel
-//     });
-//   } catch (error) {
-//     console.error('Test submission error:', error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// // Get Test Results
-// router.get('/test-results/:patientId', authenticate, async (req, res) => {
-//   try {
-//     const { patientId } = req.params;
-//     const results = await CognitiveTestResponse.find({ patientId }).sort({ createdAt: -1 });
-//     res.json(results);
-//   } catch (error) {
-//     console.error('Get results error:', error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-// module.exports = router;
-
-
-
 // routes/testRoutes.js
 const express = require('express');
 const CognitiveTestResponse = require('../models/CognitiveTestResponse');
 const PatientInfo = require('../models/PatientInfo');
 const cognitiveScoring = require('../services/cognitiveScoring');
+const modelService = require('../services/modelService');
 const authenticate = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -256,8 +104,31 @@ router.post('/submit-test', authenticate, async (req, res) => {
 
     // Score the test
     const scoring = await cognitiveScoring.scoreCompleteTest(testData);
-    
     console.log('Test scored:', scoring);
+
+    // Fetch patient info and run ML prediction
+    let prediction = null;
+    try {
+      const patientInfo = await PatientInfo.findOne({ patientId });
+      if (patientInfo) {
+        // Map cognitive totalScore (0-100) to MMSE scale (0-30)
+        const derivedMMSE = Math.max(0, Math.min(30, Math.round((scoring.totalScore || 0) * 0.3)));
+
+        // Inject derived MMSE into a copy of patient info so model uses current test performance
+        const enrichedPatientInfo = {
+          ...patientInfo.toObject(),
+          mmse: derivedMMSE,
+          personal_information: {
+            ...(patientInfo.toObject().personal_information || {}),
+            mmse: derivedMMSE
+          }
+        };
+
+        prediction = await modelService.predictFromPatientInfo(enrichedPatientInfo);
+      }
+    } catch (e) {
+      console.warn('Prediction failed; proceeding without ML prediction:', e.message);
+    }
 
     // Save response
     const testResponse = new CognitiveTestResponse({
@@ -268,11 +139,11 @@ router.post('/submit-test', authenticate, async (req, res) => {
       testStatus: 'completed',
       totalScore: scoring.totalScore,
       scores: scoring.scores,
-      prediction: {
+      prediction: prediction || {
         isAD: false,
-        probability: 0.35,
-        riskLevel: 'low',
-        modelVersion: 'v1.0'
+        probability: 0.0,
+        riskLevel: 'unknown',
+        modelVersion: 'unavailable'
       }
     });
     
@@ -284,7 +155,8 @@ router.post('/submit-test', authenticate, async (req, res) => {
       testId,
       scores: scoring.scores,
       totalScore: scoring.totalScore,
-      riskLevel: scoring.riskLevel
+      riskLevel: scoring.riskLevel,
+      prediction: testResponse.prediction
     });
   } catch (error) {
     console.error('Test submission error:', error);

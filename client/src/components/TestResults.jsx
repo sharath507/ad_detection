@@ -838,6 +838,7 @@ function TestResults({ setRoute }) {
         }}>
           {testResults.prediction?.riskLevel || 'Unknown'}
         </span></p>
+        <p><strong>AI Probability:</strong> {modelProbability}%</p>
       </div>
 
       {/* Component Scores */}

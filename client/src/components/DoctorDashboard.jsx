@@ -995,6 +995,9 @@ function DoctorDashboard({ setRoute }) {
             <div style={{ backgroundColor: '#f0f9ff', padding: '1rem', borderRadius: '8px' }}>
               <p><strong>Latest Test Score:</strong> {selectedPatient.latestTest.totalScore}/100</p>
               <p><strong>Risk Level:</strong> {selectedPatient.latestTest.prediction?.riskLevel || 'N/A'}</p>
+              <p><strong>AI Probability:</strong> {typeof selectedPatient.latestTest.prediction?.probability === 'number' 
+                ? `${(selectedPatient.latestTest.prediction.probability * 100).toFixed(2)}%` 
+                : 'N/A'}</p>
               <p><strong>Date:</strong> {new Date(selectedPatient.latestTest.createdAt).toLocaleDateString()}</p>
               <p><strong>Memory:</strong> {selectedPatient.latestTest.scores?.memory?.toFixed(1) || 'N/A'}</p>
               <p><strong>Attention:</strong> {selectedPatient.latestTest.scores?.attention?.toFixed(1) || 'N/A'}</p>

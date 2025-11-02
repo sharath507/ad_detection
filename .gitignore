@@ -1,0 +1,20 @@
+# Node
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Env
+.env
+.env.*
+
+# Build/coverage
+dist/
+build/
+coverage/
+
+# OS/editor
+.DS_Store
+*.log
+
+# TensorFlow native binaries (installed via npm; do not commit)
+server/node_modules/@tensorflow/tfjs-node/deps/lib/
