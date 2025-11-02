@@ -1,4 +1,41 @@
 :root {
+  /* Design Tokens */
+  /* Primary Colors */
+  --primary-bg: #E8F0ED;       /* Soft Sage Green */
+  --secondary-bg: #F5F3F0;     /* Warm White */
+  --accent: #5B8DBE;           /* Muted Blue */
+  --text-dark: #2C3E50;        /* Dark Slate */
+  --text-light: #7F8C8D;       /* Soft Gray */
+  --success: #D4A574;          /* Warm Gold */
+  --error: #C0504D;            /* Soft Red */
+
+  /* Typography */
+  --font-size-base: 16px;
+  --font-size-label: 14px;
+  --font-size-heading: 24px;
+
+  /* Patient Dashboard (additional) */
+  --primary: #5B8DBE;           /* Muted Blue - Actions */
+  --primary-light: #7BA3D0;     /* Light Blue - Hover */
+  --background: #E8F0ED;        /* Sage Green - Main BG */
+  --accent: #D4C5B9;            /* Beige - Dividers */
+  --text-primary: #2C3E50;      /* Dark Slate - Text */
+  --text-secondary: #7F8C8D;    /* Gray - Secondary text */
+  --warning: #E8B04B;           /* Muted Orange - Alert */
+
+  /* Typography addenda */
+  --font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+  --font-size-body: 16px;
+  --font-size-subheading: 18px;
+  --line-height: 1.6;
+
+  /* Spacing scale */
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
