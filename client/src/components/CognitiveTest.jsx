@@ -893,7 +893,6 @@ const handleTextSubmit = (e) => {
   const isLastSentenceInSection = section?.type === 'sentence_repeat' && questionIndex >= section.sentences.length - 1;
 
   let newAnswers = { ...updatedAnswers };
-  if (section?.type === 'clock_drawing') newAnswers.clock_drawing = 'submitted';
 
   // Determine whether to go to next section
   // For sentence_repeat handled by MultiSentenceRepeat, advance section upon completion
@@ -1340,9 +1339,21 @@ const handleTextSubmit = (e) => {
           <div>
             <h3>{currentSection.title}</h3>
             <p>{currentSection.instruction}</p>
-            <DrawingCanvas clockMode={true} />
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-              <button onClick={() => handleNext()}>Submit Drawing</button>
+            <DrawingCanvas
+              clockMode={true}
+              onComplete={(payload) => {
+                const cd = {
+                  hourAngle: payload.hourAngle,
+                  minuteAngle: payload.minuteAngle,
+                  imageData: payload.snapshot,
+                  submittedAt: new Date()
+                };
+                const newAnswers = { ...answers, clock_drawing: cd };
+                setAnswers(newAnswers);
+                handleNext(newAnswers);
+              }}
+            />
+            <div style={{ marginTop: '1rem' }}>
               <button type="button" onClick={handleSkipSection} style={{ backgroundColor: '#9ca3af' }}>Skip</button>
             </div>
           </div>

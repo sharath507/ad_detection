@@ -102,8 +102,8 @@ router.post('/submit-test', authenticate, async (req, res) => {
     console.log('Submitting test:', testId);
     console.log('Test data received:', testData);
 
-    // Score the test
-    const scoring = await cognitiveScoring.scoreCompleteTest(testData);
+    // Score the test (pass req for IP-based location in orientation scoring)
+    const scoring = await cognitiveScoring.scoreCompleteTest(testData, { req });
     console.log('Test scored:', scoring);
 
     // Fetch patient info and run ML prediction

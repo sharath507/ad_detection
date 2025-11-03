@@ -1,4 +1,28 @@
 // // services/cognitiveScoring.js
+const https = require('https');
+
+function httpGetJson(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve({ ok: true, json });
+        } catch (e) {
+          resolve({ ok: false });
+        }
+      });
+    });
+    // Timeout after 2500ms
+    req.setTimeout(2500, () => {
+      req.destroy(new Error('timeout'));
+    });
+    req.on('error', () => resolve({ ok: false }));
+    req.end();
+  });
+}
 // const validators = require('../utils/validators');
 
 // class CognitiveTestScoringService {
@@ -82,7 +106,7 @@
 
 // services/cognitiveScoring.js
 class CognitiveTestScoringService {
-  async scoreCompleteTest(testResponse) {
+  async scoreCompleteTest(testResponse, options = {}) {
     try {
       const scores = {};
       
@@ -105,9 +129,17 @@ class CognitiveTestScoringService {
         scores.attention = Math.min(100, Math.max(0, sum / attentionParts.length));
       }
       
-      // Score Visuospatial Component
+      // Score Visuospatial Component (combine trail making and clock drawing if available)
+      const visuospatialParts = [];
       if (testResponse.trail_making) {
-        scores.visuospatial = this.scoreTrailMaking(testResponse.trail_making);
+        visuospatialParts.push(this.scoreTrailMaking(testResponse.trail_making));
+      }
+      if (testResponse.clock_drawing && (testResponse.clock_drawing.hourAngle != null) && (testResponse.clock_drawing.minuteAngle != null)) {
+        visuospatialParts.push(this.scoreClockDrawing(testResponse.clock_drawing));
+      }
+      if (visuospatialParts.length > 0) {
+        const sum = visuospatialParts.reduce((a, b) => a + b, 0);
+        scores.visuospatial = Math.min(100, Math.max(0, sum / visuospatialParts.length));
       }
       
       // Score Language Component
@@ -115,8 +147,8 @@ class CognitiveTestScoringService {
         scores.language = this.scoreImageNaming(testResponse);
       }
       
-      // Score Orientation - extract from flat structure
-      scores.orientation = this.scoreOrientation(testResponse);
+      // Score Orientation - needs request context for IP-based location
+      scores.orientation = await this.scoreOrientation(testResponse, options.req);
       
       // Score Similarity - extract from flat structure
       scores.similarity = this.scoreSimilarity(testResponse);
@@ -149,6 +181,41 @@ class CognitiveTestScoringService {
     if (memoryRecall.word3?.toLowerCase().includes(words[2].toLowerCase())) correctCount++;
     
     return (correctCount / 3) * 100;
+  }
+
+  scoreClockDrawing(clock) {
+    // Expected time: 11:10 -> minute at 10 mins, hour at 11 + 10/60
+    const TWO_PI = Math.PI * 2;
+    const norm = (a) => {
+      let x = a % TWO_PI;
+      if (x < 0) x += TWO_PI;
+      return x;
+    };
+    const circDist = (a, b) => {
+      const d = Math.abs(norm(a) - norm(b));
+      return Math.min(d, TWO_PI - d);
+    };
+
+    const expectedMinute = (10 / 60) * TWO_PI; // PI/3
+    const expectedHour = ((11 + 10/60) / 12) * TWO_PI; // ~5.8469 rad
+
+    const minuteErrRad = circDist(clock.minuteAngle, expectedMinute);
+    const hourErrRad = circDist(clock.hourAngle, expectedHour);
+
+    const rad2deg = (r) => r * 180 / Math.PI;
+    const minuteErrDeg = rad2deg(minuteErrRad);
+    const hourErrDeg = rad2deg(hourErrRad);
+
+    // Tolerances: minute 15°, hour 30°. Linear decay to zero at tolerance.
+    const scoreFromErr = (errDeg, tolDeg, max) => {
+      if (errDeg >= tolDeg) return 0;
+      return max * (1 - (errDeg / tolDeg));
+    };
+
+    const minuteScore = scoreFromErr(minuteErrDeg, 15, 50);
+    const hourScore = scoreFromErr(hourErrDeg, 30, 50);
+    const total = Math.max(0, Math.min(100, minuteScore + hourScore));
+    return total;
   }
 
   scoreLetterTap(letterTap) {
@@ -206,40 +273,146 @@ class CognitiveTestScoringService {
     return (correctCount / 3) * 100;
   }
 
-  scoreOrientation(testResponse) {
-    // Extract orientation answers from flat structure
-    const orientationAnswers = [
-      testResponse.orient1,
-      testResponse.orient2,
-      testResponse.orient3,
-      testResponse.orient4,
-      testResponse.orient5,
-      testResponse.orient6
-    ].filter(a => a);
+  async scoreOrientation(testResponse, req) {
+    const now = new Date();
+    const serverDay = now.getDate();
+    const serverMonthIndex = now.getMonth(); // 0-based
+    const serverYear = now.getFullYear();
+    const serverWeekdayIndex = now.getDay(); // 0 (Sun) - 6 (Sat)
 
-    if (orientationAnswers.length === 0) return 0;
-    
-    // Simple scoring: count non-empty answers
-    return (orientationAnswers.length / 6) * 100;
+    const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    const weekdayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
+    const normalize = (v) => (v || '').toString().trim().toLowerCase();
+
+    let correct = 0;
+    const total = 6;
+    const pointsPer = 100 / total; // ~16.67
+
+    // Date (day of month)
+    const a1 = normalize(testResponse.orient1);
+    if (a1) {
+      const dayNum = parseInt(a1.replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(dayNum) && dayNum === serverDay) correct++;
+    }
+
+    // Month
+    const a2 = normalize(testResponse.orient2);
+    if (a2) {
+      const monthNum = parseInt(a2.replace(/[^0-9]/g, ''), 10);
+      const matchedByNum = !isNaN(monthNum) && monthNum >= 1 && monthNum <= 12 && (monthNum - 1) === serverMonthIndex;
+      const matchedByName = monthNames[serverMonthIndex] && a2.includes(monthNames[serverMonthIndex]);
+      if (matchedByNum || matchedByName) correct++;
+    }
+
+    // Year
+    const a3 = normalize(testResponse.orient3);
+    if (a3) {
+      const yearNum = parseInt(a3.replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(yearNum) && yearNum === serverYear) correct++;
+    }
+
+    // Day of week
+    const a4 = normalize(testResponse.orient4);
+    if (a4) {
+      const wdNum = parseInt(a4.replace(/[^0-9]/g, ''), 10);
+      const matchedByName = weekdayNames[serverWeekdayIndex] && a4.includes(weekdayNames[serverWeekdayIndex]);
+      // Accept numbers 0..6 or 1..7 (Mon=1 style isn't standard; we only accept JS indices if provided)
+      const matchedByNum = !isNaN(wdNum) && (wdNum === serverWeekdayIndex || wdNum === serverWeekdayIndex + 1);
+      if (matchedByName || matchedByNum) correct++;
+    }
+
+    // Season by month (northern hemisphere conventional)
+    // Winter: Dec-Feb, Spring: Mar-May, Summer: Jun-Aug, Autumn: Sep-Nov
+    const a5 = normalize(testResponse.orient5);
+    if (a5) {
+      const m = serverMonthIndex + 1; // 1..12
+      let expectedSeason = '';
+      if (m === 12 || m <= 2) expectedSeason = 'winter';
+      else if (m >= 3 && m <= 5) expectedSeason = 'spring';
+      else if (m >= 6 && m <= 8) expectedSeason = 'summer';
+      else expectedSeason = 'autumn';
+      if (a5.includes(expectedSeason) || (expectedSeason === 'autumn' && a5.includes('fall'))) correct++;
+    }
+
+    // Location: determine via client IP geolocation (city/state/country)
+    const a6 = normalize(testResponse.orient6);
+    if (a6) {
+      try {
+        const enableGeo = process.env.ENABLE_GEOLOCATION !== 'false';
+        if (!enableGeo) {
+          // Geolocation disabled via env flag
+          throw new Error('geolocation disabled');
+        }
+
+        const ipRaw = req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req?.ip || '';
+        // Handle local addresses gracefully
+        const localIps = ['::1','127.0.0.1','::ffff:127.0.0.1'];
+        const isPrivate = (ip) => {
+          // IPv4 private ranges
+          return /^(10\.)|(192\.168\.)|(172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(ip);
+        };
+
+        if (!ipRaw || localIps.includes(ipRaw) || isPrivate(ipRaw)) {
+          // Cannot verify reliably from localhost; leave as incorrect
+        } else {
+          // Use ipapi.co (no API key) over HTTPS
+          const url = `https://ipapi.co/${ipRaw}/json/`;
+          const resp = await httpGetJson(url);
+          if (resp.ok && resp.json) {
+            const geo = resp.json;
+            const parts = [geo.city, geo.region, geo.country_name, geo.country_code];
+            const normParts = parts.filter(Boolean).map(x => normalize(x));
+            if (normParts.some(p => p && a6.includes(p))) correct++;
+          }
+        }
+      } catch (e) {
+        // On failure, do not award point
+      }
+    }
+
+    return Math.min(100, Math.max(0, correct * pointsPer));
   }
 
   scoreSimilarity(testResponse) {
-    const similarityAnswers = [
-      testResponse.sim1,
-      testResponse.sim2
-    ].filter(a => a);
+    const a1 = (testResponse.sim1 || '').toString().trim().toLowerCase();
+    const a2 = (testResponse.sim2 || '').toString().trim().toLowerCase();
 
-    if (similarityAnswers.length === 0) return 0;
-    
-    // Score based on answer length (more detailed = better)
-    let score = 0;
-    similarityAnswers.forEach(answer => {
-      if (answer && answer.length > 10) score += 50;
-      else if (answer && answer.length > 5) score += 30;
-      else score += 10;
-    });
-    
-    return Math.min(score, 100);
+    if (!a1 && !a2) return 0;
+
+    const includesAny = (text, terms) => terms.some(t => text.includes(t));
+    const countMatches = (text, terms) => terms.reduce((c, t) => c + (text.includes(t) ? 1 : 0), 0);
+
+    // Similarity 1: Banana and Orange
+    const sim1Core = ['fruit','fruits','citrus','edible','food'];
+    const sim1Bonus = ['peel','seed','seeds','vitamin','vitamins','plant','plants','grow','grown','juicy','sweet','produce'];
+
+    // Similarity 2: Watch and Ruler
+    const sim2Core = ['measure','measurement','measuring','unit','units','quantity','quantities'];
+    const sim2Bonus = ['time','length','scale','instrument','tool','tools','marks','graduations','quantify','precision','standard','compare','metric'];
+
+    const scoreFor = (text, core, bonus, max = 50) => {
+      if (!text) return 0;
+      const coreCount = countMatches(text, core);
+      const bonusCount = countMatches(text, bonus);
+
+      if (coreCount > 0) {
+        // Base from core concepts: 30 for first, +5 for each extra (cap 40)
+        const base = Math.min(40, 30 + 5 * (coreCount - 1));
+        // Bonus concepts: up to +10
+        const extra = Math.min(10, bonusCount * 3);
+        return Math.min(max, base + extra);
+      }
+
+      // No core: fallback to length-based minor credit
+      if (text.length > 10) return Math.min(max, 25);
+      if (text.length > 5) return Math.min(max, 15);
+      return Math.min(max, 5);
+    };
+
+    const s1 = scoreFor(a1, sim1Core, sim1Bonus, 50);
+    const s2 = scoreFor(a2, sim2Core, sim2Bonus, 50);
+    return Math.min(100, s1 + s2);
   }
 
   calculateTotalCognitiveScore(scores) {

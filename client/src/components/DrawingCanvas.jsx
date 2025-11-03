@@ -75,14 +75,15 @@
 // export default DrawingCanvas;
 import React, { useRef, useState, useEffect } from 'react';
 
-function DrawingCanvas({ clockMode = false }) {
+function DrawingCanvas({ clockMode = false, onComplete }) {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [tool, setTool] = useState('pencil'); // 'pencil' or 'line'
   const [lineStart, setLineStart] = useState(null);
   const [activeHand, setActiveHand] = useState('minute');
-  const [hourAngle, setHourAngle] = useState(-Math.PI / 6);
-  const [minuteAngle, setMinuteAngle] = useState(Math.PI / 3);
+  // Default to 12:30 -> hour ~ PI/12, minute = PI
+  const [hourAngle, setHourAngle] = useState(Math.PI / 12);
+  const [minuteAngle, setMinuteAngle] = useState(Math.PI);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -228,6 +229,24 @@ function DrawingCanvas({ clockMode = false }) {
     setLineStart(null);
   };
 
+  const resetToTwelveThirty = () => {
+    setHourAngle(Math.PI / 12);
+    setMinuteAngle(Math.PI);
+  };
+
+  const handleComplete = () => {
+    if (!clockMode) return;
+    const canvas = canvasRef.current;
+    const snapshot = canvas.toDataURL('image/png');
+    const payload = {
+      hourAngle,
+      minuteAngle,
+      snapshot,
+      completedAt: new Date()
+    };
+    if (typeof onComplete === 'function') onComplete(payload);
+  };
+
   return (
     <div>
       {!clockMode && (
@@ -242,6 +261,8 @@ function DrawingCanvas({ clockMode = false }) {
           <button onClick={() => setActiveHand('hour')} style={{ backgroundColor: activeHand === 'hour' ? '#2563eb' : '#cbd5e1' }}>Hour Hand</button>
           <button onClick={() => setActiveHand('minute')} style={{ backgroundColor: activeHand === 'minute' ? '#2563eb' : '#cbd5e1' }}>Minute Hand</button>
           <button onClick={clearCanvas} style={{ backgroundColor: '#ef4444', color: '#ffffff' }}>Clear</button>
+          <button onClick={resetToTwelveThirty} style={{ backgroundColor: '#10b981', color: '#ffffff' }}>Reset to 12:30</button>
+          <button onClick={handleComplete} style={{ backgroundColor: '#16a34a', color: '#ffffff' }}>Submit Drawing</button>
         </div>
       )}
       <canvas
